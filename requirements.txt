@@ -1,0 +1,17 @@
+# Core scraping dependencies
+requests==2.31.0
+beautifulsoup4==4.12.3
+lxml==5.1.0
+
+# Google Sheets integration
+google-api-python-client==2.116.0
+google-auth==2.27.0
+google-auth-oauthlib==1.2.0
+google-auth-httplib2==0.2.0
+
+# Additional utilities
+urllib3==2.2.0
+certifi==2024.2.2
+charset-normalizer==3.3.2
+idna==3.6
+soupsieve==2.5
