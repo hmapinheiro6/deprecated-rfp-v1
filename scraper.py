@@ -554,9 +554,63 @@ def send_to_slack(rfps: List[Dict]) -> bool:
         return False
 
 
-def append_to_google_sheets(rfps: List[Dict]) -> bool:
+def append_to_google_sheets_webhook(rfps: List[Dict]) -> bool:
     """
-    Append RFPs to Google Sheets
+    Append RFPs to Google Sheets via Apps Script webhook
+    This is the SIMPLE method - no Google Cloud credentials needed!
+
+    Args:
+        rfps: List of RFP dictionaries
+
+    Returns:
+        True if successful, False otherwise
+    """
+    webhook_url = os.environ.get('GOOGLE_SHEETS_WEBHOOK_URL')
+
+    if not webhook_url:
+        logger.info("GOOGLE_SHEETS_WEBHOOK_URL not set, skipping Sheets update")
+        return False
+
+    if not rfps:
+        logger.info("No RFPs to append to Google Sheets")
+        return True
+
+    try:
+        # Prepare payload
+        payload = {
+            'rfps': [
+                {
+                    'title': rfp.get('title', ''),
+                    'url': rfp.get('url', ''),
+                    'source': rfp.get('source', ''),
+                    'publish_date': rfp.get('publish_date', 'N/A'),
+                    'deadline': rfp.get('deadline', 'N/A'),
+                    'snippet': rfp.get('snippet', '')
+                }
+                for rfp in rfps
+            ]
+        }
+
+        response = requests.post(
+            webhook_url,
+            json=payload,
+            timeout=30
+        )
+        response.raise_for_status()
+
+        result = response.json()
+        logger.info(f"Successfully appended {len(rfps)} RFPs to Google Sheets via webhook")
+        return True
+
+    except Exception as e:
+        logger.error(f"Error appending to Google Sheets webhook: {e}")
+        return False
+
+
+def append_to_google_sheets_api(rfps: List[Dict]) -> bool:
+    """
+    Append RFPs to Google Sheets using Google API (requires Google Cloud setup)
+    This is the COMPLEX method - only use if you need more control
 
     Args:
         rfps: List of RFP dictionaries
@@ -575,7 +629,7 @@ def append_to_google_sheets(rfps: List[Dict]) -> bool:
     sheet_id = os.environ.get('GOOGLE_SHEET_ID')
 
     if not service_account_json or not sheet_id:
-        logger.warning("Google Sheets credentials not set, skipping Sheets update")
+        logger.info("Google Sheets API credentials not set, skipping API update")
         return False
 
     try:
@@ -613,17 +667,17 @@ def append_to_google_sheets(rfps: List[Dict]) -> bool:
 
         result = service.spreadsheets().values().append(
             spreadsheetId=sheet_id,
-            range='Sheet1!A:G',  # Adjust range as needed
+            range='Sheet1!A:G',
             valueInputOption='RAW',
             insertDataOption='INSERT_ROWS',
             body=body
         ).execute()
 
-        logger.info(f"Successfully appended {len(rfps)} RFPs to Google Sheets")
+        logger.info(f"Successfully appended {len(rfps)} RFPs to Google Sheets via API")
         return True
 
     except Exception as e:
-        logger.error(f"Error appending to Google Sheets: {e}")
+        logger.error(f"Error appending to Google Sheets API: {e}")
         return False
 
 
@@ -691,8 +745,10 @@ def main():
     # Send to Slack
     send_to_slack(new_rfps)
 
-    # Optionally append to Google Sheets
-    append_to_google_sheets(new_rfps)
+    # Append to Google Sheets (try webhook first, fall back to API)
+    sheets_success = append_to_google_sheets_webhook(new_rfps)
+    if not sheets_success:
+        append_to_google_sheets_api(new_rfps)
 
     logger.info("=" * 60)
     logger.info(f"Scraper completed successfully. Found {len(new_rfps)} new relevant RFPs.")

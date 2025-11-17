@@ -17,16 +17,17 @@ A production-ready, automated RFP (Request for Proposal) scraper that monitors m
 
 ```
 rfp-scraper/
-├── scraper.py              # Main scraper with source-specific functions
-├── config.py               # Keywords and source URLs configuration
-├── utils.py                # Helper functions (dedup, parsing, logging)
-├── requirements.txt        # Python dependencies
+├── scraper.py                        # Main scraper with source-specific functions
+├── config.py                         # Keywords and source URLs configuration
+├── utils.py                          # Helper functions (dedup, parsing, logging)
+├── requirements.txt                  # Python dependencies
+├── google-apps-script-webhook.js     # Google Apps Script for Sheets integration
 ├── data/
 │   ├── .gitkeep
-│   └── seen_rfps.json     # Auto-generated dedup storage
+│   └── seen_rfps.json               # Auto-generated dedup storage
 └── .github/
     └── workflows/
-        └── scrape.yml      # GitHub Actions workflow
+        └── scrape.yml                # GitHub Actions workflow
 ```
 
 ## Scraping Sources
@@ -74,14 +75,58 @@ cd rfp-scraper
 
 ### 3. (Optional) Set Up Google Sheets
 
-If you want to append results to Google Sheets:
+**RECOMMENDED METHOD - Apps Script Webhook (No Google Cloud needed!):**
+
+1. Open your Google Sheet (or create a new one)
+2. Go to **Extensions → Apps Script**
+3. Delete the default code and paste the contents of `google-apps-script-webhook.js` (or copy from below):
+
+```javascript
+function doPost(e) {
+  try {
+    const data = JSON.parse(e.postData.contents);
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+
+    data.rfps.forEach(rfp => {
+      sheet.appendRow([
+        new Date(),
+        rfp.title || '',
+        rfp.url || '',
+        rfp.source || '',
+        rfp.publish_date || 'N/A',
+        rfp.deadline || 'N/A',
+        rfp.snippet || ''
+      ]);
+    });
+
+    return ContentService.createTextOutput(JSON.stringify({
+      'status': 'success',
+      'rows_added': data.rfps.length
+    })).setMimeType(ContentService.MimeType.JSON);
+  } catch (error) {
+    return ContentService.createTextOutput(JSON.stringify({
+      'status': 'error',
+      'message': error.toString()
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+```
+
+4. Click **Deploy → New deployment**
+5. Click gear icon → Select **Web app**
+6. Set **Execute as**: Me, **Who has access**: Anyone
+7. Click **Deploy** and copy the Web app URL
+
+**ALTERNATIVE METHOD - Google Cloud API (More complex):**
+
+Only use this if you need advanced features:
 
 1. Create a new Google Cloud Project
 2. Enable the Google Sheets API
 3. Create a Service Account
 4. Download the service account JSON key
 5. Create a Google Sheet and share it with the service account email
-6. Copy the Sheet ID from the URL (the long string in the middle of the sheet URL)
+6. Copy the Sheet ID from the URL
 
 ### 4. Configure GitHub Secrets
 
@@ -90,11 +135,21 @@ In your GitHub repository, go to **Settings → Secrets and variables → Action
 **Required:**
 - `SLACK_WEBHOOK_URL`: Your Slack webhook URL
 
-**Optional (for Google Sheets):**
+**Optional - For Google Sheets (choose ONE method):**
+
+**Method 1 - Apps Script Webhook (RECOMMENDED - Simple!):**
+- `GOOGLE_SHEETS_WEBHOOK_URL`: Your Apps Script web app URL
+
+**Method 2 - Google Cloud API (Complex):**
 - `GOOGLE_SERVICE_ACCOUNT_JSON`: Entire contents of your service account JSON file
 - `GOOGLE_SHEET_ID`: Your Google Sheet ID
 
-To add the service account JSON:
+**Example for setting up the simple webhook method:**
+1. Follow the Apps Script setup above
+2. Copy the deployment URL (looks like: `https://script.google.com/macros/s/AKfycby.../exec`)
+3. Add it as `GOOGLE_SHEETS_WEBHOOK_URL` in GitHub Secrets
+
+**Example for setting up the API method:**
 ```bash
 # Copy the entire contents of your downloaded JSON file and paste as secret
 cat path/to/service-account-key.json
@@ -116,8 +171,15 @@ pip install -r requirements.txt
 
 # Set environment variables
 export SLACK_WEBHOOK_URL="your-webhook-url"
-export GOOGLE_SERVICE_ACCOUNT_JSON='{"type": "service_account", ...}'
-export GOOGLE_SHEET_ID="your-sheet-id"
+
+# For Google Sheets (choose one method):
+# Method 1 - Apps Script Webhook (recommended):
+export GOOGLE_SHEETS_WEBHOOK_URL="https://script.google.com/macros/s/AKfycby.../exec"
+
+# Method 2 - Google Cloud API:
+# export GOOGLE_SERVICE_ACCOUNT_JSON='{"type": "service_account", ...}'
+# export GOOGLE_SHEET_ID="your-sheet-id"
+
 export DEDUP_STORAGE_PATH="data/seen_rfps.json"
 
 # Run scraper
@@ -278,6 +340,34 @@ curl -X POST -H 'Content-type: application/json' \
 ```
 
 ### Google Sheets Not Updating
+
+**If using Apps Script Webhook:**
+
+1. Test the webhook manually:
+
+```bash
+curl -X POST \
+  -H "Content-Type: application/json" \
+  -d '{
+    "rfps": [
+      {
+        "title": "Test RFP",
+        "url": "https://example.com",
+        "source": "Test Source",
+        "publish_date": "2025-01-15",
+        "deadline": "2025-02-15",
+        "snippet": "This is a test"
+      }
+    ]
+  }' \
+  YOUR_APPS_SCRIPT_URL
+```
+
+2. Check that the Apps Script deployment is set to "Anyone" (not "Anyone with Google account")
+3. Verify the webhook URL ends with `/exec` (not `/dev`)
+4. Check Apps Script execution logs: **Extensions → Apps Script → Executions**
+
+**If using Google Cloud API:**
 
 1. Verify service account has edit access to the sheet
 2. Check that sheet ID is correct
