@@ -616,6 +616,9 @@ def append_to_google_sheets_webhook(rfps: List[Dict]) -> bool:
     Append RFPs to Google Sheets via Apps Script webhook
     This is the SIMPLE method - no Google Cloud credentials needed!
 
+    Note: This function ALWAYS sends data to update the Activity Log,
+    even when there are 0 new RFPs.
+
     Args:
         rfps: List of RFP dictionaries
 
@@ -628,12 +631,9 @@ def append_to_google_sheets_webhook(rfps: List[Dict]) -> bool:
         logger.info("GOOGLE_SHEETS_WEBHOOK_URL not set, skipping Sheets update")
         return False
 
-    if not rfps:
-        logger.info("No RFPs to append to Google Sheets")
-        return True
-
     try:
         # Prepare payload
+        # Always send, even with empty list, to update Activity Log
         payload = {
             'rfps': [
                 {
@@ -656,7 +656,12 @@ def append_to_google_sheets_webhook(rfps: List[Dict]) -> bool:
         response.raise_for_status()
 
         result = response.json()
-        logger.info(f"Successfully appended {len(rfps)} RFPs to Google Sheets via webhook")
+
+        if len(rfps) > 0:
+            logger.info(f"Successfully appended {len(rfps)} RFPs to Google Sheets via webhook")
+        else:
+            logger.info("Updated Google Sheets Activity Log (0 new RFPs)")
+
         return True
 
     except Exception as e:
@@ -799,10 +804,12 @@ def main():
     # Send results
     logger.info(f"Processing {len(new_rfps)} new RFPs")
 
-    # Send to Slack
+    # Send to Slack (always send, even if 0 new RFPs)
+    if len(new_rfps) == 0:
+        logger.info("Sending 'no new RFPs' notification to Slack")
     send_to_slack(new_rfps)
 
-    # Append to Google Sheets (try webhook first, fall back to API)
+    # Append to Google Sheets (always send to update Activity Log)
     sheets_success = append_to_google_sheets_webhook(new_rfps)
     if not sheets_success:
         append_to_google_sheets_api(new_rfps)

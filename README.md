@@ -97,6 +97,12 @@ cd rfp-scraper
 
 **RECOMMENDED METHOD - Apps Script Webhook (No Google Cloud needed!):**
 
+The webhook automatically creates two sheets:
+- **RFPs**: Stores all new RFPs found
+- **Activity Log**: Tracks every scraper run (even when 0 RFPs found)
+
+Setup:
+
 1. Open your Google Sheet (or create a new one)
 2. Go to **Extensions → Apps Script**
 3. Delete the default code and paste the contents of `google-apps-script-webhook.js` (or copy from below):
@@ -321,7 +327,11 @@ schedule:
   # - cron: "0 9 * * 1"  # Every Monday at 09:00 UTC
 ```
 
-## Slack Output Format
+## Notifications & Tracking
+
+### Slack Notifications
+
+**You'll receive a Slack message on EVERY run**, even when no new RFPs are found!
 
 The scraper automatically detects your webhook type and formats accordingly:
 
@@ -330,6 +340,7 @@ The scraper automatically detects your webhook type and formats accordingly:
 - Numbered list of RFPs with details
 - Each RFP shows: Title, Source, Deadline, URL
 - Variables passed: `count`, `message`, `rfps` (for custom formatting)
+- **Empty state**: "No new relevant RFPs found today."
 
 **Traditional Webhook Format:**
 - Rich formatted message with Block Kit
@@ -339,10 +350,29 @@ The scraper automatically detects your webhook type and formats accordingly:
   - Source name
   - Publication date and deadline
   - Visual separators between RFPs
+- **Empty state**: "No new relevant RFPs found today"
 
-**Both formats:**
-- Empty state: "No new relevant RFPs found today"
-- Auto-detected based on webhook URL pattern
+### Google Sheets Tracking
+
+If you've set up Google Sheets, you get **two automatically-created sheets**:
+
+**1. RFPs Sheet**
+| Timestamp | Title | URL | Source | Published | Deadline | Description |
+|-----------|-------|-----|--------|-----------|----------|-------------|
+| 2025-01-17 06:00 | Digital Health Platform | https://... | SAM.gov | 2025-01-15 | 2025-02-28 | RFP for... |
+
+**2. Activity Log Sheet** (tracks every run)
+| Run Timestamp | New RFPs Found | Status | Notes |
+|--------------|----------------|---------|-------|
+| 2025-01-17 06:00 | 3 | Success | Added 3 new RFP(s) |
+| 2025-01-18 06:00 | 0 | No new RFPs | Scraper ran successfully but found no new relevant RFPs |
+| 2025-01-19 06:00 | 1 | Success | Added 1 new RFP(s) |
+
+This lets you:
+- Monitor scraper health (is it running daily?)
+- Track when RFPs were found
+- Debug issues (check if scraper ran but found nothing vs. didn't run)
+- See historical patterns in RFP availability
 
 ## Troubleshooting
 
