@@ -67,11 +67,31 @@ cd rfp-scraper
 
 ### 2. Set Up Slack Webhook
 
+**RECOMMENDED METHOD - Slack Workflow (No app needed!):**
+
+1. In Slack, click your workspace name → **Tools → Workflow Builder**
+2. Click **Create** to make a new workflow
+3. Name it "RFP Digest" or similar
+4. For the trigger, select **Webhook**
+5. Add variables to receive data:
+   - `count` (number)
+   - `message` (text)
+   - `rfps` (text)
+6. Add a step: **Send a message**
+   - Choose your channel
+   - In the message field, click **Insert a variable** and add `message`
+7. **Publish** the workflow
+8. Copy the webhook URL (format: `https://hooks.slack.com/workflows/...`)
+
+**ALTERNATIVE METHOD - Slack App with Incoming Webhook:**
+
 1. Go to your Slack workspace
 2. Create a new app at https://api.slack.com/apps
 3. Enable "Incoming Webhooks"
 4. Create a webhook URL for your desired channel
 5. Copy the webhook URL (format: `https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXX`)
+
+**Note:** The scraper auto-detects which type you're using based on the URL!
 
 ### 3. (Optional) Set Up Google Sheets
 
@@ -303,15 +323,26 @@ schedule:
 
 ## Slack Output Format
 
-The scraper sends formatted messages to Slack with:
+The scraper automatically detects your webhook type and formats accordingly:
 
+**Slack Workflow Format:**
+- Clean text summary with RFP count
+- Numbered list of RFPs with details
+- Each RFP shows: Title, Source, Deadline, URL
+- Variables passed: `count`, `message`, `rfps` (for custom formatting)
+
+**Traditional Webhook Format:**
+- Rich formatted message with Block Kit
 - **Header**: "Daily RFP Digest – Sword Health"
 - **For each RFP**:
   - Clickable title (linked to source)
   - Source name
-  - Publication date
-  - Deadline
-- **Empty state**: "No new relevant RFPs found today"
+  - Publication date and deadline
+  - Visual separators between RFPs
+
+**Both formats:**
+- Empty state: "No new relevant RFPs found today"
+- Auto-detected based on webhook URL pattern
 
 ## Troubleshooting
 
@@ -328,6 +359,26 @@ The scraper sends formatted messages to Slack with:
 3. Run locally with debug logging to inspect responses
 
 ### Slack Messages Not Sending
+
+**If using Slack Workflow:**
+
+1. Test the workflow manually:
+
+```bash
+curl -X POST -H 'Content-type: application/json' \
+  -d '{
+    "count": 2,
+    "message": "Test: Found 2 new RFPs",
+    "rfps": [{"title": "Test RFP", "url": "https://example.com"}]
+  }' \
+  YOUR_WORKFLOW_WEBHOOK_URL
+```
+
+2. Check that the workflow is published (not just saved as draft)
+3. Verify the workflow variables match: `count`, `message`, `rfps`
+4. Check the workflow run history in Slack Workflow Builder
+
+**If using traditional Incoming Webhook:**
 
 1. Verify webhook URL is correct and active
 2. Check webhook permissions in Slack app settings

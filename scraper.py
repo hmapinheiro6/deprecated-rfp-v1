@@ -459,15 +459,61 @@ def scrape_gavi() -> List[Dict]:
     return rfps
 
 
-def build_slack_payload(rfps: List[Dict]) -> Dict:
+def build_slack_workflow_payload(rfps: List[Dict]) -> Dict:
     """
-    Build Slack message payload from RFP list
+    Build Slack Workflow webhook payload from RFP list
+    This format is for Slack Workflows with webhook triggers
 
     Args:
         rfps: List of RFP dictionaries
 
     Returns:
-        Slack-formatted payload
+        Simple key-value payload for Slack Workflows
+    """
+    if not rfps:
+        return {
+            "count": 0,
+            "message": "No new relevant RFPs found today.",
+            "rfps": []
+        }
+
+    # Build a formatted text summary
+    rfp_list = []
+    for rfp in rfps:
+        rfp_list.append({
+            "title": rfp.get("title", "Untitled RFP"),
+            "url": rfp.get("url", ""),
+            "source": rfp.get("source", "Unknown"),
+            "published": rfp.get("publish_date", "N/A"),
+            "deadline": rfp.get("deadline", "N/A")
+        })
+
+    # Create a text summary for the workflow
+    summary = f"Found {len(rfps)} new relevant RFP(s) for Sword Health:\n\n"
+    for i, rfp in enumerate(rfps[:10], 1):  # Limit to 10 in summary
+        summary += f"{i}. {rfp.get('title', 'Untitled')} ({rfp.get('source', 'Unknown')})\n"
+        summary += f"   Deadline: {rfp.get('deadline', 'N/A')}\n"
+        summary += f"   {rfp.get('url', '')}\n\n"
+
+    if len(rfps) > 10:
+        summary += f"... and {len(rfps) - 10} more RFPs"
+
+    return {
+        "count": len(rfps),
+        "message": summary,
+        "rfps": rfp_list
+    }
+
+
+def build_slack_blocks_payload(rfps: List[Dict]) -> Dict:
+    """
+    Build Slack message payload with blocks (for traditional Incoming Webhooks)
+
+    Args:
+        rfps: List of RFP dictionaries
+
+    Returns:
+        Slack-formatted payload with blocks
     """
     if not rfps:
         text = "No new relevant RFPs found today."
@@ -526,6 +572,7 @@ def build_slack_payload(rfps: List[Dict]) -> Dict:
 def send_to_slack(rfps: List[Dict]) -> bool:
     """
     Send RFP digest to Slack via webhook
+    Auto-detects Slack Workflow webhooks vs traditional Incoming Webhooks
 
     Args:
         rfps: List of RFP dictionaries
@@ -540,7 +587,17 @@ def send_to_slack(rfps: List[Dict]) -> bool:
         return False
 
     try:
-        payload = build_slack_payload(rfps)
+        # Detect webhook type by URL pattern
+        # Slack Workflow webhooks contain '/workflows/' in the URL
+        is_workflow = '/workflows/' in webhook_url
+
+        if is_workflow:
+            logger.info("Detected Slack Workflow webhook, using simple payload format")
+            payload = build_slack_workflow_payload(rfps)
+        else:
+            logger.info("Detected traditional Slack webhook, using blocks format")
+            payload = build_slack_blocks_payload(rfps)
+
         response = requests.post(
             webhook_url,
             json=payload,
