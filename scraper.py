@@ -584,7 +584,11 @@ def send_to_slack(rfps: List[Dict]) -> bool:
 
     if not webhook_url:
         logger.warning("SLACK_WEBHOOK_URL not set, skipping Slack notification")
+        logger.warning("Set SLACK_WEBHOOK_URL environment variable to enable Slack notifications")
         return False
+
+    logger.info(f"Attempting to send Slack notification (RFP count: {len(rfps)})")
+    logger.debug(f"Webhook URL starts with: {webhook_url[:50]}...")
 
     try:
         # Detect webhook type by URL pattern
@@ -598,16 +602,28 @@ def send_to_slack(rfps: List[Dict]) -> bool:
             logger.info("Detected traditional Slack webhook, using blocks format")
             payload = build_slack_blocks_payload(rfps)
 
+        logger.debug(f"Payload size: {len(str(payload))} characters")
+
         response = requests.post(
             webhook_url,
             json=payload,
             timeout=10
         )
+
+        logger.info(f"Slack API response status: {response.status_code}")
+        logger.debug(f"Slack API response: {response.text[:200]}")
+
         response.raise_for_status()
-        logger.info(f"Successfully sent {len(rfps)} RFPs to Slack")
+        logger.info(f"✓ Successfully sent notification with {len(rfps)} RFPs to Slack")
         return True
+    except requests.exceptions.RequestException as e:
+        logger.error(f"✗ HTTP error sending to Slack: {e}")
+        if hasattr(e, 'response') and e.response is not None:
+            logger.error(f"Response status: {e.response.status_code}")
+            logger.error(f"Response body: {e.response.text[:500]}")
+        return False
     except Exception as e:
-        logger.error(f"Error sending to Slack: {e}")
+        logger.error(f"✗ Unexpected error sending to Slack: {e}")
         return False
 
 
@@ -629,7 +645,11 @@ def append_to_google_sheets_webhook(rfps: List[Dict]) -> bool:
 
     if not webhook_url:
         logger.info("GOOGLE_SHEETS_WEBHOOK_URL not set, skipping Sheets update")
+        logger.info("Set GOOGLE_SHEETS_WEBHOOK_URL environment variable to enable Google Sheets tracking")
         return False
+
+    logger.info(f"Attempting to update Google Sheets (RFP count: {len(rfps)})")
+    logger.debug(f"Webhook URL starts with: {webhook_url[:50]}...")
 
     try:
         # Prepare payload
@@ -648,24 +668,40 @@ def append_to_google_sheets_webhook(rfps: List[Dict]) -> bool:
             ]
         }
 
+        logger.debug(f"Payload size: {len(str(payload))} characters")
+
         response = requests.post(
             webhook_url,
             json=payload,
             timeout=30
         )
+
+        logger.info(f"Google Sheets API response status: {response.status_code}")
+        logger.debug(f"Google Sheets API response: {response.text[:200]}")
+
         response.raise_for_status()
 
-        result = response.json()
+        try:
+            result = response.json()
+            logger.debug(f"Response JSON: {result}")
+        except:
+            logger.debug("Response is not JSON")
 
         if len(rfps) > 0:
-            logger.info(f"Successfully appended {len(rfps)} RFPs to Google Sheets via webhook")
+            logger.info(f"✓ Successfully appended {len(rfps)} RFPs to Google Sheets via webhook")
         else:
-            logger.info("Updated Google Sheets Activity Log (0 new RFPs)")
+            logger.info("✓ Updated Google Sheets Activity Log (0 new RFPs)")
 
         return True
 
+    except requests.exceptions.RequestException as e:
+        logger.error(f"✗ HTTP error sending to Google Sheets: {e}")
+        if hasattr(e, 'response') and e.response is not None:
+            logger.error(f"Response status: {e.response.status_code}")
+            logger.error(f"Response body: {e.response.text[:500]}")
+        return False
     except Exception as e:
-        logger.error(f"Error appending to Google Sheets webhook: {e}")
+        logger.error(f"✗ Unexpected error appending to Google Sheets webhook: {e}")
         return False
 
 
@@ -802,20 +838,34 @@ def main():
     save_seen_rfps(storage_path, seen_ids)
 
     # Send results
-    logger.info(f"Processing {len(new_rfps)} new RFPs")
+    logger.info("=" * 60)
+    logger.info(f"Processing {len(new_rfps)} new RFPs (Total scraped: {len(all_rfps)})")
+    logger.info("=" * 60)
 
     # Send to Slack (always send, even if 0 new RFPs)
     if len(new_rfps) == 0:
-        logger.info("Sending 'no new RFPs' notification to Slack")
-    send_to_slack(new_rfps)
+        logger.info("No new RFPs found - sending empty notification to Slack")
+    else:
+        logger.info(f"Found {len(new_rfps)} new RFPs - sending to Slack")
+
+    slack_success = send_to_slack(new_rfps)
 
     # Append to Google Sheets (always send to update Activity Log)
+    logger.info("")
     sheets_success = append_to_google_sheets_webhook(new_rfps)
     if not sheets_success:
-        append_to_google_sheets_api(new_rfps)
+        logger.info("Webhook failed, trying API method...")
+        sheets_success = append_to_google_sheets_api(new_rfps)
 
+    # Summary
+    logger.info("")
     logger.info("=" * 60)
-    logger.info(f"Scraper completed successfully. Found {len(new_rfps)} new relevant RFPs.")
+    logger.info("SCRAPER RUN SUMMARY")
+    logger.info("=" * 60)
+    logger.info(f"Total RFPs scraped: {len(all_rfps)}")
+    logger.info(f"New RFPs found: {len(new_rfps)}")
+    logger.info(f"Slack notification: {'✓ SENT' if slack_success else '✗ FAILED (check logs above)'}")
+    logger.info(f"Google Sheets update: {'✓ SENT' if sheets_success else '✗ FAILED (check logs above)'}")
     logger.info("=" * 60)
 
 
