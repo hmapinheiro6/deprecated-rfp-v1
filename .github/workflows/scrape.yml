@@ -38,9 +38,10 @@ jobs:
           GOOGLE_SHEETS_WEBHOOK_URL: ${{ secrets.GOOGLE_SHEETS_WEBHOOK_URL }}
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
+          SAM_GOV_API_KEY: ${{ secrets.SAM_GOV_API_KEY }}
           DEDUP_STORAGE_PATH: "data/seen_rfps.json"
         run: |
-          python scraper.py
+          python scraper_api.py
 
       - name: Commit updated dedup file
         run: |

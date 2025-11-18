@@ -2,6 +2,16 @@
 
 A production-ready, automated RFP (Request for Proposal) scraper that monitors multiple procurement sources daily and delivers relevant opportunities directly to your team via Slack.
 
+## 🚀 Now Using Official APIs!
+
+**The scraper has been upgraded to use official APIs instead of web scraping.** This means:
+- ✅ **More reliable** - Won't break when websites change
+- ✅ **Works with JavaScript sites** - No more empty results
+- ✅ **Faster** - Direct API calls instead of parsing HTML
+- ✅ **Free** - SAM.gov API key is free (required)
+
+**[📖 Read the API Setup Guide](API_SETUP.md)** - Get your free SAM.gov API key in 2 minutes!
+
 ## Features
 
 - **Automated Daily Scraping**: Runs automatically every day at 06:00 UTC via GitHub Actions
@@ -154,12 +164,24 @@ Only use this if you need advanced features:
 5. Create a Google Sheet and share it with the service account email
 6. Copy the Sheet ID from the URL
 
-### 4. Configure GitHub Secrets
+### 4. Get SAM.gov API Key (Required - Free!)
+
+The scraper uses the SAM.gov API which requires a free API key:
+
+1. Go to https://open.gsa.gov/api/opportunities-api/
+2. Click **"Request an API Key"** or visit https://sam.gov/data-services/API
+3. Register with your email (free, instant)
+4. Copy your API key from the confirmation email
+
+**Why required?** SAM.gov is the primary source for US government contracts and uses an API instead of web scraping.
+
+### 5. Configure GitHub Secrets
 
 In your GitHub repository, go to **Settings → Secrets and variables → Actions** and add:
 
 **Required:**
 - `SLACK_WEBHOOK_URL`: Your Slack webhook URL
+- `SAM_GOV_API_KEY`: Your SAM.gov API key (from step 4)
 
 **Optional - For Google Sheets (choose ONE method):**
 
@@ -181,7 +203,7 @@ In your GitHub repository, go to **Settings → Secrets and variables → Action
 cat path/to/service-account-key.json
 ```
 
-### 5. Enable GitHub Actions
+### 6. Enable GitHub Actions
 
 1. Go to **Actions** tab in your repository
 2. Enable workflows if prompted
