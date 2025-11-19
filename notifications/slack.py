@@ -134,7 +134,7 @@ def send_to_slack(rfps: List[Dict], test_mode: bool = False) -> bool:
     Returns:
         True if successful, False otherwise
     """
-    webhook_url = os.environ.get('SLACK_WEBHOOK_URL')
+    webhook_url = os.environ.get('SLACK_WEBHOOK_URL', '').strip()
 
     if not webhook_url:
         logger.warning("SLACK_WEBHOOK_URL not set, skipping Slack notification")

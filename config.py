@@ -42,12 +42,12 @@ SCRAPERS = {
         'name': 'UNGM'
     },
     'sourcewell': {
-        'enabled': False,  # Disabled by default - needs Selenium
+        'enabled': True,  # Enabled - uses Selenium for JS-rendered content
         'method': 'selenium',
         'name': 'Sourcewell'
     },
     'gavi': {
-        'enabled': False,  # Disabled by default - needs Selenium
+        'enabled': True,  # Enabled - uses Selenium for JS-rendered content
         'method': 'selenium',
         'name': 'Gavi'
     }

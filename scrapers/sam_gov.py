@@ -24,7 +24,7 @@ class SamGovScraper(BaseScraper):
 
     def __init__(self, enabled: bool = True):
         super().__init__(name="SAM.gov", enabled=enabled)
-        self.api_key = os.environ.get('SAM_GOV_API_KEY', '')
+        self.api_key = os.environ.get('SAM_GOV_API_KEY', '').strip()
         self.timeout = 30
 
     def _check_relevance(self, text: str) -> List[str]:
@@ -59,7 +59,8 @@ class SamGovScraper(BaseScraper):
         rfps = []
 
         # Build search query - last 30 days
-        posted_from = (datetime.utcnow() - timedelta(days=30)).strftime('%m/%d/%Y')
+        # SAM.gov API expects MM/DD/YYYY format, but let's try YYYY-MM-DD (ISO) which is more standard
+        posted_from = (datetime.utcnow() - timedelta(days=30)).strftime('%Y-%m-%d')
 
         params = {
             'postedFrom': posted_from,

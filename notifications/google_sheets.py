@@ -27,7 +27,7 @@ def send_to_google_sheets(rfps: List[Dict], test_mode: bool = False) -> bool:
     Returns:
         True if successful, False otherwise
     """
-    webhook_url = os.environ.get('GOOGLE_SHEETS_WEBHOOK_URL')
+    webhook_url = os.environ.get('GOOGLE_SHEETS_WEBHOOK_URL', '').strip()
 
     if not webhook_url:
         logger.info("GOOGLE_SHEETS_WEBHOOK_URL not set, skipping Sheets update")
