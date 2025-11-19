@@ -1,7 +1,9 @@
 """
 Configuration file for RFP scraper
-Contains keywords for filtering and source URLs
+Contains keywords for filtering and scraper configuration
 """
+
+import os
 
 # Keywords to filter RFPs (case-insensitive matching)
 KEYWORDS = [
@@ -16,7 +18,42 @@ KEYWORDS = [
     "chronic pain"
 ]
 
-# Scraping sources configuration
+# Webhook URLs (from environment)
+SLACK_WEBHOOK = os.getenv('SLACK_WEBHOOK_URL')
+GOOGLE_SHEETS_WEBHOOK = os.getenv('GOOGLE_SHEETS_WEBHOOK_URL')
+SAM_GOV_API_KEY = os.getenv('SAM_GOV_API_KEY')
+
+# Scraper enable/disable config
+# method: 'api' = API-based, 'selenium' = Selenium scraping, 'scrape' = BeautifulSoup
+SCRAPERS = {
+    'sam_gov': {
+        'enabled': True,
+        'method': 'api',
+        'name': 'SAM.gov'
+    },
+    'undp': {
+        'enabled': True,
+        'method': 'api',
+        'name': 'UNDP Procurement'
+    },
+    'ungm': {
+        'enabled': True,
+        'method': 'api',
+        'name': 'UNGM'
+    },
+    'sourcewell': {
+        'enabled': False,  # Disabled by default - needs Selenium
+        'method': 'selenium',
+        'name': 'Sourcewell'
+    },
+    'gavi': {
+        'enabled': False,  # Disabled by default - needs Selenium
+        'method': 'selenium',
+        'name': 'Gavi'
+    }
+}
+
+# Legacy SOURCES config (kept for backward compatibility with old scripts)
 SOURCES = {
     "sam_gov": {
         "name": "SAM.gov",
@@ -36,12 +73,12 @@ SOURCES = {
     "sourcewell": {
         "name": "Sourcewell",
         "url": "https://www.sourcewell-mn.gov/solicitations",
-        "enabled": True
+        "enabled": False
     },
     "gavi": {
         "name": "Gavi",
         "url": "https://www.gavi.org/news-resources/tenders-procurements",
-        "enabled": True
+        "enabled": False
     }
 }
 

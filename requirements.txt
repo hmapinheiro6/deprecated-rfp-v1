@@ -9,9 +9,16 @@ google-auth==2.27.0
 google-auth-oauthlib==1.2.0
 google-auth-httplib2==0.2.0
 
+# Environment variable management
+python-dotenv==1.0.0
+
 # Additional utilities
 urllib3==2.2.0
 certifi==2024.2.2
 charset-normalizer==3.3.2
 idna==3.6
 soupsieve==2.5
+
+# Selenium dependencies (for Phase 2 - currently disabled in config)
+# selenium==4.16.0
+# webdriver-manager==4.0.1
