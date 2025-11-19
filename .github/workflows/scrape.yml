@@ -28,6 +28,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Setup Chrome for Selenium
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+
       - name: Create data directory
         run: |
           mkdir -p data
@@ -41,7 +46,7 @@ jobs:
           SAM_GOV_API_KEY: ${{ secrets.SAM_GOV_API_KEY }}
           DEDUP_STORAGE_PATH: "data/seen_rfps.json"
         run: |
-          python scraper_api.py
+          python main.py
 
       - name: Commit updated dedup file
         run: |

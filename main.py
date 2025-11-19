@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 from config import SCRAPERS
 
 # Import scrapers
-from scrapers import SamGovScraper, UndpScraper, UngmScraper
+from scrapers import SamGovScraper, UndpScraper, UngmScraper, SourcewellScraper, GaviScraper
 
 # Import notifications
 from notifications import send_to_slack, send_to_google_sheets
@@ -77,7 +77,8 @@ def run_scrapers() -> List[Dict]:
         'sam_gov': SamGovScraper,
         'undp': UndpScraper,
         'ungm': UngmScraper,
-        # Sourcewell and Gavi will be added in Phase 2
+        'sourcewell': SourcewellScraper,
+        'gavi': GaviScraper,
     }
 
     for scraper_key, config in SCRAPERS.items():
