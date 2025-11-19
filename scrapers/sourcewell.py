@@ -100,7 +100,20 @@ class SourcewellScraper(BaseScraper):
             logger.info(f"{self.name}: Initializing Chrome WebDriver...")
 
             # Set up Chrome driver with auto-download
-            service = Service(ChromeDriverManager().install())
+            # ChromeDriverManager().install() returns the path, but we need to ensure it's the binary
+            driver_path = ChromeDriverManager().install()
+
+            # Fix for webdriver-manager returning wrong file (THIRD_PARTY_NOTICES instead of chromedriver)
+            import os
+            if 'THIRD_PARTY_NOTICES' in driver_path or not os.access(driver_path, os.X_OK):
+                # Get the directory and find the actual chromedriver binary
+                driver_dir = os.path.dirname(driver_path)
+                actual_driver = os.path.join(driver_dir, 'chromedriver')
+                if os.path.exists(actual_driver) and os.access(actual_driver, os.X_OK):
+                    driver_path = actual_driver
+                    logger.debug(f"{self.name}: Corrected driver path to {driver_path}")
+
+            service = Service(driver_path)
             chrome_options = self._get_chrome_options()
             driver = webdriver.Chrome(service=service, options=chrome_options)
 

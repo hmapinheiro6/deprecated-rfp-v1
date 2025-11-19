@@ -59,8 +59,8 @@ class SamGovScraper(BaseScraper):
         rfps = []
 
         # Build search query - last 30 days
-        # SAM.gov API expects MM/DD/YYYY format, but let's try YYYY-MM-DD (ISO) which is more standard
-        posted_from = (datetime.utcnow() - timedelta(days=30)).strftime('%Y-%m-%d')
+        # SAM.gov API expects MM/DD/YYYY format for dates
+        posted_from = (datetime.utcnow() - timedelta(days=30)).strftime('%m/%d/%Y')
 
         params = {
             'postedFrom': posted_from,
@@ -68,17 +68,18 @@ class SamGovScraper(BaseScraper):
             'limit': 100,   # Max results per request
         }
 
+        # Add API key as query parameter (not header!)
+        if self.api_key:
+            params['api_key'] = self.api_key
+            logger.debug(f"{self.name}: Using API key")
+        else:
+            logger.warning(f"{self.name}: No API key set. Get free key at https://open.gsa.gov/api/opportunities-api/")
+            logger.warning(f"{self.name}: API may have low rate limits without key")
+
         headers = {
             'Accept': 'application/json',
             'User-Agent': 'RFP-Scraper-Sword-Health/1.0'
         }
-
-        # Add API key if available (increases rate limits)
-        if self.api_key:
-            headers['X-Api-Key'] = self.api_key
-            logger.debug(f"{self.name}: Using API key")
-        else:
-            logger.warning(f"{self.name}: No API key set. Get free key at https://open.gsa.gov/api/opportunities-api/")
 
         logger.debug(f"{self.name}: Request URL: {self.API_URL}")
         logger.debug(f"{self.name}: Params: {params}")
