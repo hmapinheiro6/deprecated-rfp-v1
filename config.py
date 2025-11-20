@@ -30,27 +30,27 @@ SAM_GOV_API_KEY = os.getenv('SAM_GOV_API_KEY')
 # method: 'api' = API-based, 'selenium' = Selenium scraping, 'scrape' = BeautifulSoup
 SCRAPERS = {
     'sam_gov': {
-        'enabled': True,
+        'enabled': True,  # ONLY SAM.gov enabled for now
         'method': 'api',
         'name': 'SAM.gov'
     },
     'undp': {
-        'enabled': True,
+        'enabled': False,  # DISABLED - will enable after SAM.gov works
         'method': 'api',
         'name': 'UNDP Procurement'
     },
     'ungm': {
-        'enabled': True,
+        'enabled': False,  # DISABLED - will enable after SAM.gov works
         'method': 'api',
         'name': 'UNGM'
     },
     'sourcewell': {
-        'enabled': True,  # Enabled - uses Selenium for JS-rendered content
+        'enabled': False,  # DISABLED - will enable after SAM.gov works
         'method': 'selenium',
         'name': 'Sourcewell'
     },
     'gavi': {
-        'enabled': True,  # Enabled - uses Selenium for JS-rendered content
+        'enabled': False,  # DISABLED - will enable after SAM.gov works
         'method': 'selenium',
         'name': 'Gavi'
     }

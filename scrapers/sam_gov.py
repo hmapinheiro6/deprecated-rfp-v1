@@ -60,6 +60,21 @@ class SamGovScraper(BaseScraper):
         rfps = []
         all_opportunities = []
 
+        # Check if API key is set
+        if not self.api_key:
+            logger.error(f"{self.name}: ========================================")
+            logger.error(f"{self.name}: SAM_GOV_API_KEY environment variable is NOT SET!")
+            logger.error(f"{self.name}: SAM.gov API requires an API key for ALL requests.")
+            logger.error(f"{self.name}: ")
+            logger.error(f"{self.name}: To fix:")
+            logger.error(f"{self.name}: 1. Get free API key: https://open.gsa.gov/api/opportunities-api/")
+            logger.error(f"{self.name}: 2. Add to GitHub Secrets as: SAM_GOV_API_KEY")
+            logger.error(f"{self.name}: 3. Restart the workflow")
+            logger.error(f"{self.name}: ========================================")
+            return rfps
+
+        logger.info(f"{self.name}: API key found: {self.api_key[:10]}...")
+
         # Strategy: Search by each keyword separately to find relevant opportunities
         # This avoids date format issues and gets better targeted results
         logger.info(f"{self.name}: Searching by {len(KEYWORDS)} keywords")
@@ -69,22 +84,16 @@ class SamGovScraper(BaseScraper):
                 params = {
                     'keyword': keyword,  # Correct parameter for v2 API
                     'size': 50,          # Limit per keyword (v2 uses 'size')
-                    'latest': 'true'     # Get latest records only
+                    'latest': 'true',    # Get latest records only
+                    'api_key': self.api_key  # Required for all requests
                 }
-
-                # Add API key as query parameter
-                if self.api_key:
-                    params['api_key'] = self.api_key
-                else:
-                    logger.warning(f"{self.name}: No API key set. Rate limits may apply.")
-                    logger.warning(f"Get free key at: https://open.gsa.gov/api/opportunities-api/")
 
                 headers = {
                     'Accept': 'application/json',
                     'User-Agent': 'RFP-Scraper-Sword-Health/1.0'
                 }
 
-                logger.debug(f"{self.name}: Searching for keyword: '{keyword}'")
+                logger.info(f"{self.name}: Searching for keyword: '{keyword}'")
 
                 # Make API request
                 response = requests.get(
@@ -94,7 +103,14 @@ class SamGovScraper(BaseScraper):
                     timeout=self.timeout
                 )
 
-                logger.debug(f"{self.name}: Response status for '{keyword}': {response.status_code}")
+                # DETAILED LOGGING FOR DEBUGGING
+                logger.info(f"{self.name}: ========== REQUEST DETAILS ==========")
+                logger.info(f"{self.name}: Full URL: {response.url}")
+                logger.info(f"{self.name}: Response Status: {response.status_code}")
+                logger.info(f"{self.name}: Response Headers: {dict(response.headers)}")
+                logger.info(f"{self.name}: Response Text (first 1000 chars):")
+                logger.info(f"{self.name}: {response.text[:1000]}")
+                logger.info(f"{self.name}: =====================================")
 
                 # Handle 401 (missing/invalid API key)
                 if response.status_code == 401:
@@ -102,11 +118,20 @@ class SamGovScraper(BaseScraper):
                     logger.error("Get a free API key at: https://open.gsa.gov/api/opportunities-api/")
                     break  # Stop trying other keywords
 
+                # Handle 429 (rate limit)
+                if response.status_code == 429:
+                    logger.error(f"{self.name}: 429 Rate Limited - API key needed or rate limit exceeded")
+                    logger.error("Get a free API key at: https://open.gsa.gov/api/opportunities-api/")
+                    logger.error(f"Response body: {response.text[:500]}")
+                    break  # Stop trying other keywords
+
                 if response.status_code != 200:
                     logger.warning(f"{self.name}: Got status {response.status_code} for keyword '{keyword}'")
+                    logger.warning(f"{self.name}: Response body: {response.text[:500]}")
                     continue  # Try next keyword
 
                 data = response.json()
+                logger.info(f"{self.name}: Response JSON keys: {list(data.keys())}")
 
                 # Parse opportunities
                 opportunities = data.get('opportunitiesData', [])

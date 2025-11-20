@@ -200,8 +200,10 @@ def main():
     slack_success = send_to_slack(new_rfps, test_mode=test_mode)
 
     # Send to Google Sheets (always send to update Activity Log)
+    # DISABLED - will enable after SAM.gov works
     logger.info("")
-    sheets_success = send_to_google_sheets(new_rfps, test_mode=test_mode)
+    # sheets_success = send_to_google_sheets(new_rfps, test_mode=test_mode)
+    sheets_success = False  # Disabled for now
 
     # Summary
     logger.info("")
