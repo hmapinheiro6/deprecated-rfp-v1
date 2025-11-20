@@ -16,10 +16,10 @@ class UndpScraper(BaseScraper):
     """
     Scraper for UNDP Procurement Notices using HTML parsing
 
-    URL: https://procurement-notices.undp.org/view_notices
+    URL: https://procurement-notices.undp.org/
     """
 
-    URL = "https://procurement-notices.undp.org/view_notices"
+    URL = "https://procurement-notices.undp.org/"
 
     def __init__(self, enabled: bool = True):
         super().__init__(name="UNDP Procurement", enabled=enabled)

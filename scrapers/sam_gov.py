@@ -67,9 +67,9 @@ class SamGovScraper(BaseScraper):
         for keyword in KEYWORDS[:5]:  # Limit to first 5 keywords to avoid rate limits
             try:
                 params = {
-                    'ptype': 'o',  # Opportunities (not awards)
-                    'q': keyword,  # Search query (keyword)
-                    'limit': 50,   # Limit per keyword
+                    'keyword': keyword,  # Correct parameter for v2 API
+                    'size': 50,          # Limit per keyword (v2 uses 'size')
+                    'latest': 'true'     # Get latest records only
                 }
 
                 # Add API key as query parameter

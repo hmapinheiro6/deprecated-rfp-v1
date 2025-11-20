@@ -25,7 +25,7 @@ class GaviScraper(BaseScraper):
     to render the page before extracting data.
     """
 
-    URL = "https://www.gavi.org/news-resources/tenders-procurements"
+    URL = "https://www.gavi.org/our-alliance/work-us/rfps-eois-and-consulting-opportunities"
 
     def __init__(self, enabled: bool = True):
         super().__init__(name="Gavi", enabled=enabled)

@@ -65,7 +65,7 @@ SOURCES = {
     },
     "undp": {
         "name": "UNDP Procurement",
-        "url": "https://procurement-notices.undp.org/view_all_notices",
+        "url": "https://procurement-notices.undp.org/",
         "enabled": True
     },
     "ungm": {
@@ -80,7 +80,7 @@ SOURCES = {
     },
     "gavi": {
         "name": "Gavi",
-        "url": "https://www.gavi.org/news-resources/tenders-procurements",
+        "url": "https://www.gavi.org/our-alliance/work-us/rfps-eois-and-consulting-opportunities",
         "enabled": False
     }
 }
