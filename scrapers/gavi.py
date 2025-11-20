@@ -30,7 +30,7 @@ class GaviScraper(BaseScraper):
     def __init__(self, enabled: bool = True):
         super().__init__(name="Gavi", enabled=enabled)
         self.timeout = 30
-        self.page_load_wait = 5  # Seconds to wait for JS to load
+        self.page_load_wait = 10  # Seconds to wait for JS to load (increased for slow pages)
 
     def _get_chrome_options(self) -> Options:
         """
@@ -124,42 +124,56 @@ class GaviScraper(BaseScraper):
             logger.debug(f"{self.name}: Waiting {self.page_load_wait}s for JavaScript to load...")
             time.sleep(self.page_load_wait)
 
-            # Try to wait for tender listings to appear
+            # Try to wait for content to load - look for main content area
             try:
-                WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((By.TAG_NAME, "body"))
+                WebDriverWait(driver, 15).until(
+                    EC.presence_of_element_located((By.TAG_NAME, "main"))
                 )
-                logger.debug(f"{self.name}: Page loaded successfully")
+                logger.debug(f"{self.name}: Main content loaded")
             except Exception as e:
-                logger.warning(f"{self.name}: Timeout waiting for page load: {e}")
+                logger.warning(f"{self.name}: Timeout waiting for main content: {e}")
 
-            # Find tender elements
-            # Note: Selectors may need adjustment based on actual HTML structure
-            tender_selectors = [
-                "div.tender",
-                "div.procurement",
-                "article.tender",
-                "div[class*='tender']",
-                "div[class*='procurement']",
-                "div.card",
-                "article"
-            ]
-
+            # Find tender/opportunity elements
+            # Try multiple strategies since page structure may vary
             tenders = []
-            for selector in tender_selectors:
-                try:
-                    elements = driver.find_elements(By.CSS_SELECTOR, selector)
-                    if elements and len(elements) > 2:  # Need at least a few elements
-                        logger.debug(f"{self.name}: Found {len(elements)} elements with selector '{selector}'")
-                        tenders = elements
-                        break
-                except Exception as e:
-                    logger.debug(f"{self.name}: Selector '{selector}' failed: {e}")
-                    continue
+
+            # Strategy 1: Look for links containing RFP/EOI keywords in href or text
+            try:
+                all_links = driver.find_elements(By.TAG_NAME, "a")
+                rfp_links = [link for link in all_links if link.text and
+                            any(keyword in link.text.lower() for keyword in ['rfp', 'eoi', 'request for proposal', 'expression of interest', 'tender', 'procurement'])]
+                if rfp_links and len(rfp_links) > 1:
+                    logger.debug(f"{self.name}: Found {len(rfp_links)} potential RFP/EOI links")
+                    tenders = rfp_links
+            except Exception as e:
+                logger.debug(f"{self.name}: Link search failed: {e}")
+
+            # Strategy 2: Look for article/card/list item elements
+            if not tenders:
+                tender_selectors = [
+                    "article",
+                    "div.card",
+                    "li.opportunity",
+                    "div.opportunity",
+                    "div[class*='card']",
+                    "div[class*='item']",
+                    ".content-item"
+                ]
+
+                for selector in tender_selectors:
+                    try:
+                        elements = driver.find_elements(By.CSS_SELECTOR, selector)
+                        if elements and len(elements) > 2:
+                            logger.debug(f"{self.name}: Found {len(elements)} elements with selector '{selector}'")
+                            tenders = elements
+                            break
+                    except Exception as e:
+                        continue
 
             if not tenders:
                 logger.warning(f"{self.name}: No tenders found on page. Page may have changed structure.")
-                logger.debug(f"{self.name}: Page source preview: {driver.page_source[:500]}...")
+                logger.debug(f"{self.name}: Page title: {driver.title}")
+                logger.debug(f"{self.name}: Page source length: {len(driver.page_source)}")
                 return rfps
 
             logger.info(f"{self.name}: Processing {len(tenders)} tender elements...")

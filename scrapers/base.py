@@ -87,7 +87,7 @@ class BaseScraper(ABC):
         Returns:
             True if valid, False otherwise
         """
-        required_fields = ['source', 'title', 'url', 'publish_date', 'deadline']
+        required_fields = ['source', 'title', 'url', 'posted_date', 'response_date']
 
         for field in required_fields:
             if field not in rfp or not rfp[field]:

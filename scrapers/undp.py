@@ -88,30 +88,15 @@ class UndpScraper(BaseScraper):
 
             soup = BeautifulSoup(html_content, 'html.parser')
 
-            # Try multiple possible selectors for UNDP notices
-            # These are common patterns - may need adjustment after inspecting actual HTML
+            # UNDP uses anchor tags with href containing 'view_negotiation.cfm' or 'view_notice.cfm'
+            # Each notice is a single <a> tag with multiple <div> children
             notices = []
 
-            # Strategy 1: Look for table rows with notice data
-            table = soup.find('table', class_='notices') or soup.find('table', id='notices-table')
-            if table:
-                notices = table.find_all('tr')[1:]  # Skip header row
-                logger.debug(f"{self.name}: Found {len(notices)} rows in notices table")
-
-            # Strategy 2: Look for div containers
-            if not notices:
-                notices = soup.find_all('div', class_='notice') or soup.find_all('div', class_='notice-item')
-                logger.debug(f"{self.name}: Found {len(notices)} notice divs")
-
-            # Strategy 3: Look for article elements
-            if not notices:
-                notices = soup.find_all('article', class_='notice') or soup.find_all('article')
-                logger.debug(f"{self.name}: Found {len(notices)} article elements")
-
-            # Strategy 4: Look for any elements with 'notice' in class name
-            if not notices:
-                notices = soup.find_all(class_=lambda x: x and 'notice' in x.lower())
-                logger.debug(f"{self.name}: Found {len(notices)} elements with 'notice' in class")
+            # Find all anchor tags that link to notice/negotiation pages
+            notice_links = soup.find_all('a', href=lambda x: x and ('view_negotiation.cfm' in x or 'view_notice.cfm' in x))
+            if notice_links:
+                notices = notice_links
+                logger.debug(f"{self.name}: Found {len(notices)} notice links")
 
             logger.info(f"{self.name}: Found {len(notices)} potential notice elements")
 
@@ -124,33 +109,39 @@ class UndpScraper(BaseScraper):
             parsed_count = 0
             for notice in notices[:50]:  # Limit to first 50 to avoid processing too much
                 try:
-                    # Try to extract title - multiple strategies
-                    title_elem = (
-                        notice.find('td', class_='title') or
-                        notice.find('div', class_='title') or
-                        notice.find('h2') or
-                        notice.find('h3') or
-                        notice.find('a')
-                    )
-                    title = title_elem.get_text(strip=True) if title_elem else ''
+                    # Extract all divs from the anchor tag
+                    divs = notice.find_all('div')
 
-                    # Try to extract description
-                    desc_elem = (
-                        notice.find('td', class_='description') or
-                        notice.find('div', class_='description') or
-                        notice.find('p')
-                    )
-                    description = desc_elem.get_text(strip=True) if desc_elem else ''
+                    # Skip if not enough divs
+                    if len(divs) < 4:
+                        continue
 
-                    # Try to find link
-                    link_elem = notice.find('a')
-                    link = link_elem.get('href', '') if link_elem else ''
+                    # Extract data from divs (based on UNDP structure)
+                    # Div 0: Title
+                    # Div 1: Reference number
+                    # Div 2: Office/Country
+                    # Div 3: Process type
+                    # Div 4: Deadline
+                    # Div 5: Posted date
+
+                    title = divs[0].get_text(strip=True) if len(divs) > 0 else ''
+                    ref_number = divs[1].get_text(strip=True) if len(divs) > 1 else ''
+                    office = divs[2].get_text(strip=True) if len(divs) > 2 else ''
+                    process_type = divs[3].get_text(strip=True) if len(divs) > 3 else ''
+                    deadline = divs[4].get_text(strip=True) if len(divs) > 4 else 'N/A'
+                    publish_date = divs[5].get_text(strip=True) if len(divs) > 5 else 'N/A'
+
+                    # Get the link URL
+                    link = notice.get('href', '')
                     if link and not link.startswith('http'):
-                        link = f"https://procurement-notices.undp.org{link}"
+                        link = f"https://procurement-notices.undp.org/{link}"
 
                     # Skip if no title or link
                     if not title or not link:
                         continue
+
+                    # Create description from available fields
+                    description = f"{process_type} - {office} - Ref: {ref_number}"
 
                     # Check if relevant
                     combined_text = f"{title} {description}"
@@ -158,15 +149,6 @@ class UndpScraper(BaseScraper):
 
                     if not matched_keywords:
                         continue
-
-                    # Try to extract dates
-                    date_elems = notice.find_all('td', class_='date') or notice.find_all('span', class_='date')
-                    publish_date = 'N/A'
-                    deadline = 'N/A'
-                    if len(date_elems) >= 1:
-                        publish_date = date_elems[0].get_text(strip=True)
-                    if len(date_elems) >= 2:
-                        deadline = date_elems[1].get_text(strip=True)
 
                     # Create RFP
                     rfp = self.create_rfp(
