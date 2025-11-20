@@ -77,9 +77,13 @@ class SamGovScraper(BaseScraper):
 
         # Strategy: Search by each keyword separately to find relevant opportunities
         # This avoids date format issues and gets better targeted results
-        logger.info(f"{self.name}: Searching by {len(KEYWORDS)} keywords")
+        # Limit keywords to conserve daily API quota (free tier has daily limits)
+        max_keywords = 3  # Reduced to 3 to conserve quota
+        keywords_to_search = KEYWORDS[:max_keywords]
+        logger.info(f"{self.name}: Searching by {len(keywords_to_search)} keywords (out of {len(KEYWORDS)} total)")
+        logger.info(f"{self.name}: Keywords: {keywords_to_search}")
 
-        for keyword in KEYWORDS[:5]:  # Limit to first 5 keywords to avoid rate limits
+        for keyword in keywords_to_search:
             try:
                 params = {
                     'keyword': keyword,  # Correct parameter for v2 API
@@ -118,11 +122,23 @@ class SamGovScraper(BaseScraper):
                     logger.error("Get a free API key at: https://open.gsa.gov/api/opportunities-api/")
                     break  # Stop trying other keywords
 
-                # Handle 429 (rate limit)
+                # Handle 429 (rate limit / quota exceeded)
                 if response.status_code == 429:
-                    logger.error(f"{self.name}: 429 Rate Limited - API key needed or rate limit exceeded")
-                    logger.error("Get a free API key at: https://open.gsa.gov/api/opportunities-api/")
-                    logger.error(f"Response body: {response.text[:500]}")
+                    try:
+                        error_data = response.json()
+                        if 'nextAccessTime' in error_data:
+                            logger.error(f"{self.name}: ========================================")
+                            logger.error(f"{self.name}: Daily API quota exceeded!")
+                            logger.error(f"{self.name}: Message: {error_data.get('message', 'N/A')}")
+                            logger.error(f"{self.name}: Next access time: {error_data.get('nextAccessTime', 'N/A')}")
+                            logger.error(f"{self.name}: ")
+                            logger.error(f"{self.name}: The SAM.gov API will work again after the quota resets.")
+                            logger.error(f"{self.name}: Your scheduled daily run should work fine tomorrow.")
+                            logger.error(f"{self.name}: ========================================")
+                        else:
+                            logger.error(f"{self.name}: 429 Rate Limited: {response.text[:500]}")
+                    except:
+                        logger.error(f"{self.name}: 429 Rate Limited: {response.text[:500]}")
                     break  # Stop trying other keywords
 
                 if response.status_code != 200:
