@@ -83,13 +83,23 @@ class SamGovScraper(BaseScraper):
         logger.info(f"{self.name}: Searching by {len(keywords_to_search)} keywords (out of {len(KEYWORDS)} total)")
         logger.info(f"{self.name}: Keywords: {keywords_to_search}")
 
+        # Calculate date range - SAM.gov API REQUIRES postedFrom and postedTo
+        today = datetime.utcnow()
+        thirty_days_ago = today - timedelta(days=30)
+        posted_from = thirty_days_ago.strftime('%m/%d/%Y')
+        posted_to = today.strftime('%m/%d/%Y')
+
+        logger.info(f"{self.name}: Date range: {posted_from} to {posted_to}")
+
         for keyword in keywords_to_search:
             try:
                 params = {
-                    'keyword': keyword,  # Correct parameter for v2 API
-                    'size': 50,          # Limit per keyword (v2 uses 'size')
-                    'latest': 'true',    # Get latest records only
-                    'api_key': self.api_key  # Required for all requests
+                    'api_key': self.api_key,      # REQUIRED
+                    'postedFrom': posted_from,     # REQUIRED by v2 API
+                    'postedTo': posted_to,         # REQUIRED by v2 API
+                    'ptype': 'o',                  # Opportunities only
+                    'q': keyword,                  # Keyword search
+                    'limit': 50                    # Results per request
                 }
 
                 headers = {
