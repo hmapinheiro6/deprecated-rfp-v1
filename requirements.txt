@@ -1,24 +1,22 @@
 # Core scraping dependencies
-requests==2.31.0
-beautifulsoup4==4.12.3
-lxml==5.1.0
+requests>=2.31.0
+beautifulsoup4>=4.12.2
+lxml>=4.9.3
 
-# Google Sheets integration
+# Google Sheets integration (optional - only needed if using Google Cloud credentials)
+# Webhook method doesn't require these
 google-api-python-client==2.116.0
 google-auth==2.27.0
 google-auth-oauthlib==1.2.0
 google-auth-httplib2==0.2.0
 
 # Environment variable management
-python-dotenv==1.0.0
+python-dotenv>=1.0.0
 
 # Selenium dependencies (for JavaScript-heavy sites)
-selenium==4.16.0
-webdriver-manager==4.0.1
+selenium>=4.15.0
+webdriver-manager>=4.0.1
 
-# Additional utilities
-urllib3==2.2.0
-certifi==2024.2.2
-charset-normalizer==3.3.2
-idna==3.6
-soupsieve==2.5
+# Additional utilities (automatically installed with above)
+urllib3>=2.0.0
+certifi>=2023.0.0

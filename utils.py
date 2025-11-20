@@ -265,3 +265,39 @@ def safe_get_attr(element, attr: str, default: str = "") -> str:
         return element.get(attr, default)
     except Exception:
         return default
+
+
+def save_debug_html(content: str, scraper_name: str, success: bool = False) -> str:
+    """
+    Save HTML content for debugging scraper issues
+
+    Args:
+        content: HTML content to save
+        scraper_name: Name of the scraper (for filename)
+        success: Whether the scrape was successful (adds to filename)
+
+    Returns:
+        Path to saved file
+    """
+    try:
+        # Create debug directory if it doesn't exist
+        debug_dir = "debug_html"
+        if not os.path.exists(debug_dir):
+            os.makedirs(debug_dir)
+
+        # Create filename with timestamp
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        status = "success" if success else "failed"
+        filename = f"{scraper_name}_{status}_{timestamp}.html"
+        filepath = os.path.join(debug_dir, filename)
+
+        # Save content
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(content)
+
+        logger.info(f"📄 Debug HTML saved to: {filepath}")
+        return filepath
+
+    except Exception as e:
+        logger.error(f"Failed to save debug HTML: {e}")
+        return ""

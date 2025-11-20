@@ -52,63 +52,84 @@ class SamGovScraper(BaseScraper):
     def _scrape(self) -> List[Dict]:
         """
         Scrape SAM.gov API for procurement opportunities
+        Uses keyword-based search for better targeting
 
         Returns:
             List of RFP dictionaries
         """
         rfps = []
+        all_opportunities = []
 
-        # Build search query - last 30 days
-        # SAM.gov API expects MM/DD/YYYY format for dates
-        posted_from = (datetime.utcnow() - timedelta(days=30)).strftime('%m/%d/%Y')
+        # Strategy: Search by each keyword separately to find relevant opportunities
+        # This avoids date format issues and gets better targeted results
+        logger.info(f"{self.name}: Searching by {len(KEYWORDS)} keywords")
 
-        params = {
-            'postedFrom': posted_from,
-            'ptype': 'o',  # Opportunities (not awards)
-            'limit': 100,   # Max results per request
-        }
+        for keyword in KEYWORDS[:5]:  # Limit to first 5 keywords to avoid rate limits
+            try:
+                params = {
+                    'ptype': 'o',  # Opportunities (not awards)
+                    'q': keyword,  # Search query (keyword)
+                    'limit': 50,   # Limit per keyword
+                }
 
-        # Add API key as query parameter (not header!)
-        if self.api_key:
-            params['api_key'] = self.api_key
-            logger.debug(f"{self.name}: Using API key")
-        else:
-            logger.warning(f"{self.name}: No API key set. Get free key at https://open.gsa.gov/api/opportunities-api/")
-            logger.warning(f"{self.name}: API may have low rate limits without key")
+                # Add API key as query parameter
+                if self.api_key:
+                    params['api_key'] = self.api_key
+                else:
+                    logger.warning(f"{self.name}: No API key set. Rate limits may apply.")
+                    logger.warning(f"Get free key at: https://open.gsa.gov/api/opportunities-api/")
 
-        headers = {
-            'Accept': 'application/json',
-            'User-Agent': 'RFP-Scraper-Sword-Health/1.0'
-        }
+                headers = {
+                    'Accept': 'application/json',
+                    'User-Agent': 'RFP-Scraper-Sword-Health/1.0'
+                }
 
-        logger.debug(f"{self.name}: Request URL: {self.API_URL}")
-        logger.debug(f"{self.name}: Params: {params}")
+                logger.debug(f"{self.name}: Searching for keyword: '{keyword}'")
 
-        # Make API request
-        response = requests.get(
-            self.API_URL,
-            params=params,
-            headers=headers,
-            timeout=self.timeout
-        )
+                # Make API request
+                response = requests.get(
+                    self.API_URL,
+                    params=params,
+                    headers=headers,
+                    timeout=self.timeout
+                )
 
-        logger.info(f"{self.name}: API response status: {response.status_code}")
+                logger.debug(f"{self.name}: Response status for '{keyword}': {response.status_code}")
 
-        # Handle 401 (missing/invalid API key)
-        if response.status_code == 401:
-            logger.error(f"{self.name}: 401 Unauthorized - API key may be invalid or required")
-            logger.error("Get a free API key at: https://open.gsa.gov/api/opportunities-api/")
-            return rfps
+                # Handle 401 (missing/invalid API key)
+                if response.status_code == 401:
+                    logger.error(f"{self.name}: 401 Unauthorized - API key invalid or required")
+                    logger.error("Get a free API key at: https://open.gsa.gov/api/opportunities-api/")
+                    break  # Stop trying other keywords
 
-        response.raise_for_status()
+                if response.status_code != 200:
+                    logger.warning(f"{self.name}: Got status {response.status_code} for keyword '{keyword}'")
+                    continue  # Try next keyword
 
-        data = response.json()
+                data = response.json()
 
-        # Parse opportunities
-        opportunities = data.get('opportunitiesData', [])
-        logger.info(f"{self.name}: API returned {len(opportunities)} total opportunities")
+                # Parse opportunities
+                opportunities = data.get('opportunitiesData', [])
+                logger.debug(f"{self.name}: Found {len(opportunities)} opportunities for '{keyword}'")
+                all_opportunities.extend(opportunities)
 
-        for opp in opportunities:
+            except Exception as e:
+                logger.warning(f"{self.name}: Error searching keyword '{keyword}': {e}")
+                continue
+
+        # Deduplicate by notice ID
+        seen_ids = set()
+        unique_opportunities = []
+        for opp in all_opportunities:
+            notice_id = opp.get('noticeId', '')
+            if notice_id and notice_id not in seen_ids:
+                seen_ids.add(notice_id)
+                unique_opportunities.append(opp)
+
+        logger.info(f"{self.name}: Found {len(unique_opportunities)} unique opportunities after deduplication")
+
+        # Parse unique opportunities
+        for opp in unique_opportunities:
             try:
                 title = opp.get('title', '')
                 description = opp.get('description', '')

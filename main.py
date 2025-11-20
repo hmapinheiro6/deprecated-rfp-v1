@@ -63,9 +63,12 @@ def filter_new_rfps(rfps: List[Dict], seen_ids: set) -> List[Dict]:
     return new_rfps
 
 
-def run_scrapers() -> List[Dict]:
+def run_scrapers(filter_scraper: str = None) -> List[Dict]:
     """
     Run all enabled scrapers and aggregate results
+
+    Args:
+        filter_scraper: If provided, only run this specific scraper
 
     Returns:
         List of all RFPs found across all scrapers
@@ -82,9 +85,16 @@ def run_scrapers() -> List[Dict]:
     }
 
     for scraper_key, config in SCRAPERS.items():
-        if not config.get('enabled', False):
-            logger.info(f"Skipping {config.get('name', scraper_key)} (disabled in config)")
+        # If filter_scraper specified, only run that one
+        if filter_scraper and scraper_key != filter_scraper:
             continue
+
+        if not config.get('enabled', False):
+            if filter_scraper == scraper_key:
+                logger.warning(f"{config.get('name', scraper_key)} is disabled in config, but running anyway due to --scraper flag")
+            else:
+                logger.info(f"Skipping {config.get('name', scraper_key)} (disabled in config)")
+                continue
 
         # Get scraper class
         scraper_class = scraper_classes.get(scraper_key)
@@ -119,15 +129,36 @@ def main():
         action='store_true',
         help='Test mode - run scrapers but skip sending notifications'
     )
+    parser.add_argument(
+        '--scraper',
+        type=str,
+        help='Test only specific scraper (e.g., "sam_gov", "undp", "ungm", "sourcewell", "gavi")'
+    )
+    parser.add_argument(
+        '--debug',
+        action='store_true',
+        help='Enable debug mode (saves HTML for inspection, verbose logging)'
+    )
     args = parser.parse_args()
 
     test_mode = args.test
+    single_scraper = args.scraper
+    debug_mode = args.debug
+
+    # Set debug HTML environment variable if debug mode
+    if debug_mode:
+        os.environ['SAVE_DEBUG_HTML'] = 'true'
+        logger.info("Debug mode enabled - HTML will be saved to debug_html/ directory")
 
     # Log startup
     logger.info("=" * 60)
     logger.info("Starting RFP Scraper for Sword Health")
     logger.info(f"Timestamp: {datetime.utcnow().isoformat()}")
     logger.info(f"Mode: {'TEST' if test_mode else 'PRODUCTION'}")
+    if single_scraper:
+        logger.info(f"Running single scraper: {single_scraper}")
+    if debug_mode:
+        logger.info(f"Debug mode: ENABLED")
     logger.info("=" * 60)
 
     # Get dedup storage path
@@ -136,8 +167,13 @@ def main():
     # Load previously seen RFP IDs
     seen_ids = load_seen_rfps(storage_path)
 
-    # Run all enabled scrapers
-    all_rfps = run_scrapers()
+    # Run scrapers (all enabled, or just one if --scraper specified)
+    all_rfps = run_scrapers(filter_scraper=single_scraper)
+
+    # Validate single_scraper if specified
+    if single_scraper and len(all_rfps) == 0:
+        logger.warning(f"Scraper '{single_scraper}' found 0 RFPs. This might be normal or indicate an issue.")
+        logger.warning(f"Valid scraper names: sam_gov, undp, ungm, sourcewell, gavi")
 
     # Filter out previously seen RFPs
     new_rfps = filter_new_rfps(all_rfps, seen_ids)

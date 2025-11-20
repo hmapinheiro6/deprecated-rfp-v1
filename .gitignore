@@ -52,5 +52,8 @@ Thumbs.db
 .coverage
 htmlcov/
 
+# Debug HTML output
+debug_html/
+
 # Don't ignore the dedup file - we want to track it
 !data/seen_rfps.json

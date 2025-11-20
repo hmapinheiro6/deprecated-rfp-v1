@@ -91,7 +91,36 @@ def send_to_google_sheets(rfps: List[Dict], test_mode: bool = False) -> bool:
         logger.error(f"✗ HTTP error sending to Google Sheets: {e}")
         if hasattr(e, 'response') and e.response is not None:
             logger.error(f"Response status: {e.response.status_code}")
-            logger.error(f"Response body: {e.response.text[:500]}")
+
+            # Provide helpful error messages based on status code
+            if e.response.status_code == 404:
+                logger.error("=" * 60)
+                logger.error("❌ 404 Error - Apps Script webhook not found")
+                logger.error("")
+                logger.error("⚠️  ACTION REQUIRED - Setup Google Sheets Webhook:")
+                logger.error("   1. Open your Google Sheet")
+                logger.error("   2. Go to Extensions → Apps Script")
+                logger.error("   3. Paste the webhook code from google-apps-script-webhook.js")
+                logger.error("   4. Click Deploy → New deployment")
+                logger.error("   5. Click gear icon ⚙️ → Select 'Web app'")
+                logger.error("   6. Configure:")
+                logger.error("      • Execute as: Me")
+                logger.error("      • Who has access: Anyone")
+                logger.error("   7. Click 'Deploy'")
+                logger.error("   8. Copy the Web App URL (ends with /exec)")
+                logger.error("   9. Add to GitHub Secrets: GOOGLE_SHEETS_WEBHOOK_URL")
+                logger.error("")
+                logger.error("⚠️  IMPORTANT: Use the /exec URL, NOT /dev URL")
+                logger.error("=" * 60)
+            elif e.response.status_code == 403:
+                logger.error("=" * 60)
+                logger.error("❌ 403 Forbidden - Permission denied")
+                logger.error("Check that the Apps Script deployment:")
+                logger.error("  • Has 'Who has access' set to 'Anyone'")
+                logger.error("  • Is deployed (not just saved)")
+                logger.error("=" * 60)
+            else:
+                logger.error(f"Response body: {e.response.text[:500]}")
         return False
     except Exception as e:
         logger.error(f"✗ Unexpected error appending to Google Sheets webhook: {e}")
